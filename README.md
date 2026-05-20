@@ -1,11 +1,12 @@
 Task Management Application
+
 📌 Project Overview
 
 The Task Management Application is a full-stack web application designed to help teams and organizations manage projects and tasks efficiently.
 
 The system provides secure JWT-based authentication with role-based access control for Admin and Member users.
 
-The application allows users to:
+Users can:
 
 Create and manage projects
 Assign team members
@@ -18,7 +19,7 @@ The main goal of the project is to improve team collaboration, task tracking, an
 🚀 Core Features
 🔐 1. User Authentication
 User Registration & Login
-JWT-based Authentication
+JWT-Based Authentication
 Secure API Access
 Role-Based Authorization
 Admin
@@ -33,9 +34,9 @@ View Project Details
 
 The application provides a Kanban-style task board with the following columns:
 
-To Do
-In Progress
-Done
+📝 To Do
+🚧 In Progress
+✅ Done
 ✅ Task Features
 Create Tasks
 Edit Tasks
