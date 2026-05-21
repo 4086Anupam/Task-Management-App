@@ -38,10 +38,12 @@ public class WebSecurityConfiguration {
     private final UserService userService;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http)
-            throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+
+                .cors(cors -> {
+                })
 
                 // Disable CSRF
                 .csrf(AbstractHttpConfigurer::disable)
@@ -50,46 +52,31 @@ public class WebSecurityConfiguration {
                 .authorizeHttpRequests(request -> request
 
                         // Public APIs
-                        .requestMatchers("/api/auth/**", "/health")
-                        .permitAll()
+                        .requestMatchers("/api/auth/**", "/health").permitAll()
 
                         // Admin APIs
-                        .requestMatchers("/api/admin/**")
-                        .hasAuthority(UserRole.ADMIN.name())
+                        .requestMatchers("/api/admin/**").hasAuthority(UserRole.ADMIN.name())
 
                         // Employee APIs
-                        .requestMatchers("/api/employee/**")
-                        .hasAuthority(UserRole.EMPLOYEE.name())
+                        .requestMatchers("/api/employee/**").hasAuthority(UserRole.EMPLOYEE.name())
 
                         // Project APIs
-                        .requestMatchers("/api/projects/**")
-                        .authenticated()
+                        .requestMatchers("/api/projects/**").authenticated()
 
                         // Swagger APIs
-                        .requestMatchers(
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // Any Other Request
-                        .anyRequest()
-                        .authenticated()
-                )
+                        .anyRequest().authenticated())
 
                 // Stateless Session
-                .sessionManagement(manager ->
-                        manager.sessionCreationPolicy(STATELESS)
-                )
+                .sessionManagement(manager -> manager.sessionCreationPolicy(STATELESS))
 
                 // Authentication Provider
                 .authenticationProvider(authenticationProvider())
 
                 // JWT Filter
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -97,12 +84,9 @@ public class WebSecurityConfiguration {
     @Bean
     public AuthenticationProvider authenticationProvider() {
 
-        DaoAuthenticationProvider authProvider =
-                new DaoAuthenticationProvider();
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
 
-        authProvider.setUserDetailsService(
-                userService.userDetailsService()
-        );
+        authProvider.setUserDetailsService(userService.userDetailsService());
 
         authProvider.setPasswordEncoder(passwordEncoder());
 
@@ -116,9 +100,7 @@ public class WebSecurityConfiguration {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration config)
-            throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
 
         return config.getAuthenticationManager();
     }

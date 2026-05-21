@@ -4,27 +4,18 @@ import com.taskmanager.Task_Management_Application.dto.AuthenticationRequest;
 import com.taskmanager.Task_Management_Application.dto.AuthenticationResponse;
 import com.taskmanager.Task_Management_Application.dto.SignupRequest;
 import com.taskmanager.Task_Management_Application.dto.UserDto;
-import com.taskmanager.Task_Management_Application.entities.User;
-import com.taskmanager.Task_Management_Application.repository.UserRepository;
 import com.taskmanager.Task_Management_Application.service.auth.AuthService;
-import com.taskmanager.Task_Management_Application.service.jwt.UserService;
-import com.taskmanager.Task_Management_Application.utils.JwtUtil;
-
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-
-import org.springframework.security.core.userdetails.UserDetails;
-
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import com.taskmanager.Task_Management_Application.dto.VerifyOtpRequest;
 
 import java.util.Optional;
 
@@ -34,14 +25,6 @@ import java.util.Optional;
 public class AuthController {
 
     private final AuthService authService;
-
-    private final UserRepository userRepository;
-
-    private final UserService userService;
-
-    private final JwtUtil jwtUtil;
-
-    private final AuthenticationManager authenticationManager;
 
     @PostMapping("/signup")
     public ResponseEntity<?> signupUser(
@@ -70,60 +53,29 @@ public class AuthController {
                 .body(createdUserDto);
     }
 
+        @PostMapping("/request-otp")
+        public ResponseEntity<String> requestOtp(@RequestParam String email) {
+                authService.generateOtpForUser(email);
+                return ResponseEntity.ok("OTP sent if user exists and is unverified");
+        }
+
+        @PostMapping("/verify-otp")
+        public ResponseEntity<String> verifyOtp(@RequestBody VerifyOtpRequest verifyOtpRequest) {
+                boolean ok = authService.verifyOtpForUser(verifyOtpRequest.getEmail(), verifyOtpRequest.getOtp(), verifyOtpRequest.getNewPassword());
+                if (ok) return ResponseEntity.ok("Verified");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid or expired OTP");
+        }
+
     @PostMapping("/login")
-    public AuthenticationResponse login(
+    public ResponseEntity<AuthenticationResponse> login(
             @RequestBody AuthenticationRequest authenticationRequest) throws Exception {
 
         try {
-
-            authenticationManager.authenticate(
-
-                    new UsernamePasswordAuthenticationToken(
-                            authenticationRequest.getEmail(),
-                            authenticationRequest.getPassword()
-                    )
-            );
-
-            // extra
-
-            final UserDetails userDetails =
-                    userService.userDetailsService()
-                            .loadUserByUsername(
-                                    authenticationRequest.getEmail()
-                            );
-
-            Optional<User> optionalUser =
-                    userRepository.findByEmail(
-                            authenticationRequest.getEmail()
-                    );
-
-            final String jwtToken =
-                    jwtUtil.generateToken(userDetails);
-
-            AuthenticationResponse authenticationResponse =
-                    new AuthenticationResponse();
-
-            if (optionalUser.isPresent()) {
-
-                authenticationResponse.setJwt(jwtToken);
-
-                authenticationResponse.setUserId(
-                        optionalUser.get().getId()
-                );
-
-                authenticationResponse.setUserRole(
-                        optionalUser.get().getRole()
-                );
-            }
-
-            return authenticationResponse;
+            AuthenticationResponse authenticationResponse = authService.login(authenticationRequest);
+            return ResponseEntity.ok(authenticationResponse);
 
         } catch (Exception e) {
 
-//            throw new BadCredentialsException(
-//                    "Incorrect email or password"
-//            );
-            System.out.println(e.getMessage());
             throw new Exception(e.getMessage());
         }
     }

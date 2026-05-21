@@ -13,6 +13,22 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
+    // Get Project
+    @GetMapping("/{id}")
+    public ResponseEntity<ProjectDto> getProject(@PathVariable Long id) {
+        return ResponseEntity.ok(
+                projectService.getProjectById(id)
+        );
+    }
+
+    // Get All Projects
+    @GetMapping
+    public ResponseEntity<java.util.List<ProjectDto>> getAllProjects() {
+        return ResponseEntity.ok(
+                projectService.getAllProjects()
+        );
+    }
+
     // Create Project
     @PostMapping
     public ResponseEntity<ProjectDto> createProject(
@@ -52,5 +68,16 @@ public class ProjectController {
         projectService.assignMemberToProject(projectId, userId);
 
         return ResponseEntity.ok("Member Assigned Successfully");
+    }
+
+    // Remove Member
+    @DeleteMapping("/{projectId}/members/{userId}")
+    public ResponseEntity<String> removeMember(
+            @PathVariable Long projectId,
+            @PathVariable Long userId) {
+
+        projectService.removeMemberFromProject(projectId, userId);
+
+        return ResponseEntity.ok("Member Removed Successfully");
     }
 }

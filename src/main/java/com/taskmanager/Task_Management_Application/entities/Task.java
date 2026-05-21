@@ -5,10 +5,14 @@ import com.taskmanager.Task_Management_Application.dto.TaskDto;
 import com.taskmanager.Task_Management_Application.enums.TaskStatus;
 import jakarta.persistence.*;
 import lombok.Data;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "tasks")
@@ -31,14 +35,26 @@ public class Task {
     private LocalDate dueDate;
 
     // =====================================
-    // User Mapping
+    // Primary Assignee Mapping
     // =====================================
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "user_id", nullable = true)
     @JsonIgnore
-    private User user;
+    private User primaryAssignee;
+
+    // =====================================
+    // Additional Assignees Mapping
+    // =====================================
+
+    @ManyToMany
+    @JoinTable(
+            name = "task_assignees",
+            joinColumns = @JoinColumn(name = "task_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    @JsonIgnore
+    private Set<User> assignees = new HashSet<>();
 
     // =====================================
     // Project Mapping
@@ -48,6 +64,18 @@ public class Task {
     @JoinColumn(name = "project_id")
     @JsonIgnore
     private Project project;
+
+    // Active / soft-delete
+    private Boolean active = true;
+
+    // Audit fields
+    private Long createdBy;
+    private Long updatedBy;
+    private Long deletedBy;
+
+    private java.time.LocalDateTime createdAt;
+    private java.time.LocalDateTime updatedAt;
+    private java.time.LocalDateTime deletedAt;
 
     // =====================================
     // Convert Entity to DTO
@@ -69,17 +97,32 @@ public class Task {
 
         taskDto.setDueDate(dueDate);
 
-        taskDto.setUserId(user.getId());
+        List<User> sortedAssignees = assignees == null ? List.of() : assignees.stream()
+                .sorted(Comparator.comparingLong(User::getId))
+                .toList();
 
-        taskDto.setProjectId(project.getId());
+        User primary = primaryAssignee != null ? primaryAssignee : (sortedAssignees.isEmpty() ? null : sortedAssignees.get(0));
+
+        if (primary != null) {
+            taskDto.setUserId(primary.getId());
+            taskDto.setUser(primary.getUserDto());
+        }
+
+        if (!sortedAssignees.isEmpty()) {
+            taskDto.setAssigneeIds(sortedAssignees.stream().map(User::getId).collect(Collectors.toList()));
+            taskDto.setAssignees(sortedAssignees.stream().map(User::getUserDto).collect(Collectors.toList()));
+        } else if (primary != null) {
+            taskDto.setAssigneeIds(List.of(primary.getId()));
+            taskDto.setAssignees(List.of(primary.getUserDto()));
+        }
+
+        if (project != null) {
+            taskDto.setProjectId(project.getId());
+        }
 
         // =========================
         // User DTO
         // =========================
-
-        taskDto.setUser(
-                user.getUserDto()
-        );
 
         // =========================
         // Project DTO
@@ -92,5 +135,20 @@ public class Task {
         }
 
         return taskDto;
+    }
+
+    @PrePersist
+    public void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+        if (active == null) {
+            active = true;
+        }
+    }
+
+    @PreUpdate
+    public void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }

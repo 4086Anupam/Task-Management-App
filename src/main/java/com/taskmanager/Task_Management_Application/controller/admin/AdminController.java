@@ -26,6 +26,28 @@ public class AdminController {
         );
     }
 
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<String> deleteUser(
+            @PathVariable Long id
+    ) {
+
+        adminService.deleteUser(id);
+
+        return ResponseEntity.ok("User deleted successfully");
+    }
+
+        @PutMapping("/users/{id}/deactivate")
+        public ResponseEntity<String> deactivateUser(@PathVariable Long id) {
+                adminService.deactivateUser(id);
+                return ResponseEntity.ok("User deactivated");
+        }
+
+        @PutMapping("/users/{id}/restore")
+        public ResponseEntity<String> restoreUser(@PathVariable Long id) {
+                adminService.restoreUser(id);
+                return ResponseEntity.ok("User restored");
+        }
+
     @PostMapping("/task")
     public ResponseEntity<TaskDto> createTask(
             @RequestBody TaskDto taskDto

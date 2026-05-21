@@ -6,6 +6,8 @@ import lombok.Data;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "projects")
@@ -34,6 +36,14 @@ public class Project {
         projectDto.setId(id);
         projectDto.setName(name);
         projectDto.setDescription(description);
+        
+        if (members != null) {
+            List<com.taskmanager.Task_Management_Application.dto.UserDto> memberDtos = members.stream()
+                .map(User::getUserDto)
+                .collect(Collectors.toList());
+            projectDto.setMembers(memberDtos);
+        }
+        
         return projectDto;
     }
 }

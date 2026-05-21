@@ -5,7 +5,9 @@ import com.taskmanager.Task_Management_Application.dto.ProjectProgressDto;
 import com.taskmanager.Task_Management_Application.dto.TaskDto;
 import com.taskmanager.Task_Management_Application.entities.Project;
 import com.taskmanager.Task_Management_Application.entities.Task;
+import com.taskmanager.Task_Management_Application.entities.User;
 import com.taskmanager.Task_Management_Application.enums.TaskStatus;
+import com.taskmanager.Task_Management_Application.enums.UserRole;
 import com.taskmanager.Task_Management_Application.repository.ProjectRepository;
 import com.taskmanager.Task_Management_Application.repository.TaskRepository;
 import com.taskmanager.Task_Management_Application.repository.UserRepository;
@@ -13,8 +15,13 @@ import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,32 +39,34 @@ public class DashboardServiceImplementation
     @Override
     public DashboardSummaryDto getDashboardSummary() {
 
+        User currentUser = getCurrentUser();
+        boolean admin = isAdmin(currentUser);
+
         DashboardSummaryDto dto =
                 new DashboardSummaryDto();
 
-        dto.setTotalProjects(projectRepository.count());
+        List<Project> projects = admin ? projectRepository.findAll() : projectRepository.findAll().stream()
+                .filter(project -> project.getMembers() != null && project.getMembers().stream().anyMatch(member -> member.getId() == currentUser.getId()))
+                .toList();
 
-        dto.setTotalTasks(taskRepository.count());
+        List<Task> tasks = admin ? taskRepository.findAll() : taskRepository.findAll().stream()
+                .filter(task -> {
+                                        boolean assigneeMatch = task.getAssignees() != null && task.getAssignees().stream().anyMatch(user -> user.getId() == currentUser.getId());
+                                        boolean primaryMatch = task.getPrimaryAssignee() != null && task.getPrimaryAssignee().getId() == currentUser.getId();
+                                        boolean projectMatch = task.getProject() != null && task.getProject().getMembers() != null && task.getProject().getMembers().stream().anyMatch(member -> member.getId() == currentUser.getId());
+                    return assigneeMatch || primaryMatch || projectMatch;
+                })
+                .toList();
 
-        dto.setCompletedTasks(
-                taskRepository.countByTaskStatus(
-                        TaskStatus.DONE
-                )
-        );
-
-        dto.setPendingTasks(
-                taskRepository.countByTaskStatus(
-                        TaskStatus.TODO
-                )
-        );
-
-        dto.setInProgressTasks(
-                taskRepository.countByTaskStatus(
-                        TaskStatus.IN_PROGRESS
-                )
-        );
-
-        dto.setTotalUsers(userRepository.count());
+        dto.setTotalProjects(projects.size());
+        dto.setTotalTasks(tasks.size());
+        dto.setCompletedTasks(tasks.stream().filter(task -> task.getTaskStatus() == TaskStatus.DONE).count());
+        dto.setPendingTasks(tasks.stream().filter(task -> task.getTaskStatus() == TaskStatus.TODO).count());
+        dto.setInProgressTasks(tasks.stream().filter(task -> task.getTaskStatus() == TaskStatus.IN_PROGRESS).count());
+        dto.setTotalUsers(admin ? userRepository.count() : tasks.stream()
+                .flatMap(task -> task.getAssignees() == null ? java.util.stream.Stream.empty() : task.getAssignees().stream())
+                .map(User::getId)
+                .collect(Collectors.toSet()).size());
 
         return dto;
     }
@@ -65,8 +74,12 @@ public class DashboardServiceImplementation
     @Override
     public List<ProjectProgressDto> getProjectsProgress() {
 
-        List<Project> projects =
-                projectRepository.findAll();
+        User currentUser = getCurrentUser();
+        boolean admin = isAdmin(currentUser);
+
+        List<Project> projects = admin ? projectRepository.findAll() : projectRepository.findAll().stream()
+                .filter(project -> project.getMembers() != null && project.getMembers().stream().anyMatch(member -> member.getId() == currentUser.getId()))
+                .toList();
 
         List<ProjectProgressDto> response =
                 new ArrayList<>();
@@ -84,11 +97,7 @@ public class DashboardServiceImplementation
                             );
 
             long pendingTasks =
-                    taskRepository
-                            .countByProjectAndTaskStatus(
-                                    project,
-                                    TaskStatus.TODO
-                            );
+                    totalTasks - completedTasks;
 
             double progress = 0;
 
@@ -129,6 +138,10 @@ public class DashboardServiceImplementation
             Long assigneeId
     ) {
 
+        User currentUser = getCurrentUser();
+        boolean admin = isAdmin(currentUser);
+        Long effectiveAssigneeId = admin ? assigneeId : currentUser.getId();
+
         List<Task> tasks;
 
         if(status != null && priority != null){
@@ -150,16 +163,23 @@ public class DashboardServiceImplementation
             tasks =
                     taskRepository.findByPriority(priority);
 
-        } else if(assigneeId != null){
+                } else if(effectiveAssigneeId != null){
 
             tasks =
-                    taskRepository.findByUser_Id(
-                            assigneeId
+                    taskRepository.findByAssignees_Id(
+                                                        effectiveAssigneeId
                     );
 
         } else {
 
-            tasks = taskRepository.findAll();
+                        tasks = admin ? taskRepository.findAll() : taskRepository.findAll().stream()
+                                        .filter(task -> {
+                                                boolean assigneeMatch = task.getAssignees() != null && task.getAssignees().stream().anyMatch(user -> user.getId() == currentUser.getId());
+                                                boolean primaryMatch = task.getPrimaryAssignee() != null && task.getPrimaryAssignee().getId() == currentUser.getId();
+                                                boolean projectMatch = task.getProject() != null && task.getProject().getMembers() != null && task.getProject().getMembers().stream().anyMatch(member -> member.getId() == currentUser.getId());
+                                                return assigneeMatch || primaryMatch || projectMatch;
+                                        })
+                                        .toList();
         }
 
         return tasks.stream()
@@ -171,4 +191,17 @@ public class DashboardServiceImplementation
                 )
                 .toList();
     }
+
+        private User getCurrentUser() {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                if (authentication == null || authentication.getName() == null) {
+                        throw new RuntimeException("Unauthenticated user");
+                }
+                return userRepository.findByEmail(authentication.getName())
+                                .orElseThrow(() -> new RuntimeException("Current user not found"));
+        }
+
+        private boolean isAdmin(User user) {
+                return user != null && user.getRole() == UserRole.ADMIN;
+        }
 }

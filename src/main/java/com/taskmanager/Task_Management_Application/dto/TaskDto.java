@@ -4,6 +4,7 @@ import com.taskmanager.Task_Management_Application.enums.TaskStatus;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 public class TaskDto {
@@ -27,5 +28,9 @@ public class TaskDto {
     private ProjectDto project;
 
     private UserDto user;
+
+    private List<Long> assigneeIds;
+
+    private List<UserDto> assignees;
 
 }

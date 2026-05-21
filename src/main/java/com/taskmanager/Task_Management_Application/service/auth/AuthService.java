@@ -9,6 +9,10 @@ public interface AuthService {
 
   UserDto signupUser(SignupRequest signupRequest);
 
+  void generateOtpForUser(String email);
+
+  boolean verifyOtpForUser(String email, String otp, String newPassword);
+
   boolean hasUserWithEmail(String email);
 
     AuthenticationResponse login(AuthenticationRequest request);

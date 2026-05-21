@@ -10,6 +10,12 @@ public interface AdminService {
 
     List<UserDto> getUsers();
 
+    void deleteUser(Long id);
+
+    void deactivateUser(Long id);
+
+    void restoreUser(Long id);
+
     TaskDto createTask(TaskDto taskDto);
 
     List<TaskDto> getAllTasks();
