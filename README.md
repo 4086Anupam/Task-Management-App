@@ -241,40 +241,47 @@ Run the project using:
 ```bash
 docker-compose up --build
 ```
+## Environment Variables
 
-# 🔐 Environment Variables Guide
+### Backend
 
-Create a `.env` file in the backend root directory and add the following variables.
+Copy `Backend/.env.example` to `Backend/.env` and update the values.
 
----
-
-## 📄 .env.example
+Required variables:
 
 ```env
-# ===============================
-# Application Configuration
-# ===============================
-
-APP_NAME=Task_Management_Application
+DATABASE_URL=jdbc:postgresql://localhost:5432/task_management
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=your-database-password
+JWT_SECRET=your-base64-encoded-jwt-secret
 PORT=8080
-
-# ===============================
-# PostgreSQL Database Configuration
-# ===============================
-
-DB_URL=jdbc:postgresql://your-neon-db-url/neondb?sslmode=require
-
-DB_USERNAME=your_database_username
-DB_PASSWORD=your_database_password
-
-# ===============================
-# JWT Configuration
-# ===============================
-
-JWT_SECRET=your_super_secret_jwt_key
 ```
 
----
+### Variable Description
+
+| Variable | Description |
+|---|---|
+| DATABASE_URL | PostgreSQL database connection URL |
+| DATABASE_USERNAME | PostgreSQL database username |
+| DATABASE_PASSWORD | PostgreSQL database password |
+| JWT_SECRET | Secret key used for JWT token generation and validation |
+| PORT | Backend server port |
+
+### Frontend
+
+Copy `Frontend/.env.example` to `Frontend/.env` and update the values if needed.
+
+Required variables:
+
+```env
+VITE_API_BASE_URL=http://localhost:8080/api
+```
+
+### Variable Description
+
+| Variable | Description |
+|---|---|
+| VITE_API_BASE_URL | Base URL of the Spring Boot backend API |
 
 # ⚙️ application.properties Configuration
 
@@ -317,12 +324,53 @@ jwt.secret=${JWT_SECRET}
 ---
 
 # 🚀 How to Run
+## Run Locally
 
-## ▶️ Run Locally
+### 1. Start the Backend
 
 ```bash
+cd Backend
 mvn spring-boot:run
 ```
+
+The backend server runs on port `8080` by default.
+
+---
+
+### 2. Start the Frontend
+
+Open a second terminal:
+
+```bash
+cd Frontend
+npm install
+npm run dev
+```
+
+The frontend runs on the Vite development server, usually at:
+
+```text
+http://localhost:5173
+```
+
+---
+
+## Build Commands
+
+### Backend
+
+```bash
+cd Backend
+mvn clean install -DskipTests
+```
+
+### Frontend
+
+```bash
+cd Frontend
+npm run build
+```
+
 
 ---
 
@@ -595,4 +643,33 @@ The backend validates:
 If the token is valid, access to protected APIs is granted.
 
 ---
+## API Summary
 
+### Authentication
+
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+
+### Projects
+
+- `GET /api/projects/{id}`
+- `POST /api/projects`
+- `PUT /api/projects/{id}`
+- `DELETE /api/projects/{id}`
+- `PUT /api/projects/{projectId}/members/{userId}`
+- `DELETE /api/projects/{projectId}/members/{userId}`
+
+### Admin Tasks
+
+- `GET /api/admin/tasks`
+- `GET /api/admin/task/{id}`
+- `POST /api/admin/task`
+- `PUT /api/admin/task/{id}`
+- `PUT /api/admin/task/{id}/status?status=TODO|IN_PROGRESS|DONE`
+- `DELETE /api/admin/task/{id}`
+
+### Dashboard
+
+- `GET /api/dashboard/summary`
+- `GET /api/dashboard/projects-progress`
+- `GET /api/dashboard/filter-tasks`
