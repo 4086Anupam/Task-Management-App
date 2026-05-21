@@ -181,10 +181,14 @@ public class AdminServiceImpl implements AdminService {
 
     // Delete Task
     @Override
+    @Transactional
     public void deleteTask(Long id) {
 
         Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task not found"));
         TaskDto before = task.getTaskDto();
+
+        // Remove any assignment history entries referencing this task to avoid FK constraint violations
+        taskAssignmentHistoryRepository.deleteByTask_Id(id);
 
         taskRepository.delete(task);
         auditLogService.record("DELETE", "Task", id, before, null, "Task deleted");
@@ -248,16 +252,24 @@ public class AdminServiceImpl implements AdminService {
 
     // Update Task Status
     @Override
+    @Transactional
     public TaskDto updateTaskStatus(Long id, TaskStatus status) {
 
         Task existingTask = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task not found"));
         TaskDto before = existingTask.getTaskDto();
 
+        // Authorization: only admins or related users (assignee/primary assignee/project member) can change status
+        User currentUser = getCurrentUser();
+        boolean admin = currentUser.getRole() == UserRole.ADMIN;
+        if (!admin && !isTaskRelatedToUser(existingTask, currentUser.getId())) {
+            throw new RuntimeException("Not authorized to change status of this task");
+        }
+
         existingTask.setTaskStatus(status);
 
         Task updatedTask = taskRepository.save(existingTask);
 
-        saveTaskHistory(updatedTask, null, updatedTask.getPrimaryAssignee(), "Task status changed to " + status);
+        saveTaskHistory(updatedTask, currentUser, updatedTask.getPrimaryAssignee(), "Task status changed to " + status);
         auditLogService.record("STATUS_CHANGE", "Task", updatedTask.getId(), before, updatedTask.getTaskDto(), "Task status changed to " + status);
 
         if (updatedTask.getAssignees() != null) {

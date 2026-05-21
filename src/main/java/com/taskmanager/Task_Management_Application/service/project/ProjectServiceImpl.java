@@ -7,6 +7,7 @@ import com.taskmanager.Task_Management_Application.entities.User;
 import com.taskmanager.Task_Management_Application.enums.UserRole;
 import com.taskmanager.Task_Management_Application.repository.ProjectRepository;
 import com.taskmanager.Task_Management_Application.repository.TaskRepository;
+import com.taskmanager.Task_Management_Application.repository.TaskAssignmentHistoryRepository;
 import com.taskmanager.Task_Management_Application.repository.UserRepository;
 import com.taskmanager.Task_Management_Application.service.audit.AuditLogService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
+    private final TaskAssignmentHistoryRepository taskAssignmentHistoryRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
@@ -98,6 +100,8 @@ public class ProjectServiceImpl implements ProjectService {
 
         if (!tasks.isEmpty()) {
             for (Task task : tasks) {
+                // delete any assignment history entries referencing this task first
+                taskAssignmentHistoryRepository.deleteByTask_Id(task.getId());
                 taskRepository.delete(task);
             }
             taskRepository.flush();
